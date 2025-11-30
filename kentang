@@ -1,0 +1,777 @@
+-------------------------------------------
+----- =======[ Memuat WindUI ] =======
+-------------------------------------------
+
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-------------------------------------------
+----- =======[ FUNGSI GLOBAL ] =======
+-------------------------------------------
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+
+-------------------------------------------
+----- =======[ DETEKSI PLATFORM ] =======
+-------------------------------------------
+
+local PLATFORM = "Tidak Diketahui"
+local IS_MOBILE = false
+local IS_DESKTOP = false
+local IS_CONSOLE = false
+
+-- Deteksi platform
+if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+    PLATFORM = "Mobile"
+    IS_MOBILE = true
+elseif UserInputService.MouseEnabled and UserInputService.KeyboardEnabled then
+    PLATFORM = "Windows"
+    IS_DESKTOP = true
+else
+    PLATFORM = "Konsol"
+    IS_CONSOLE = true
+end
+
+-- Deteksi iOS vs Android
+local IS_IOS = false
+local IS_ANDROID = false
+
+if IS_MOBILE then
+    if GuiService:IsTenFootInterface() then
+        PLATFORM = "Konsol"
+    else
+        local success, result = pcall(function()
+            return UserInputService:GetPlatform()
+        end)
+        
+        if success then
+            if result == Enum.Platform.IOS then
+                PLATFORM = "iOS"
+                IS_IOS = true
+            else
+                PLATFORM = "Android"
+                IS_ANDROID = true
+            end
+        else
+            PLATFORM = "Mobile"
+        end
+    end
+end
+
+-------------------------------------------
+----- =======[ FUNGSI NOTIFIKASI ] =======
+-------------------------------------------
+
+local function NotifySuccess(judul, pesan, durasi)
+    WindUI:Notify({
+        Title = judul,
+        Content = pesan,
+        Duration = durasi,
+        Icon = "circle-check"
+    })
+end
+
+local function NotifyError(judul, pesan, durasi)
+    WindUI:Notify({
+        Title = judul,
+        Content = pesan,
+        Duration = durasi,
+        Icon = "ban"
+    })
+end
+
+local function NotifyInfo(judul, pesan, durasi)
+    WindUI:Notify({
+        Title = judul,
+        Content = pesan,
+        Duration = durasi,
+        Icon = "info"
+    })
+end
+
+local function NotifyWarning(judul, pesan, durasi)
+    WindUI:Notify({
+        Title = judul,
+        Content = pesan,
+        Duration = durasi,
+        Icon = "triangle-alert"
+    })
+end
+
+-------------------------------------------
+----- =======[ FUNGSI SPESIFIK PLATFORM ] =======
+-------------------------------------------
+
+local function AturBatasFPS(fps)
+    if fps == 0 then
+        if IS_MOBILE then
+            setfpsmax(120)
+            return "Tidak Terbatas (Maks 120 untuk Mobile)"
+        else
+            setfpsmax(0)
+            return "Tidak Terbatas"
+        end
+    else
+        if IS_MOBILE and fps > 120 then
+            setfpsmax(120)
+            return "120 (Maksimal Mobile)"
+        else
+            setfpsmax(fps)
+            return tostring(fps)
+        end
+    end
+end
+
+local function SalinKeClipboard(teks)
+    if IS_MOBILE then
+        local success = pcall(function()
+            return setclipboard(teks)
+        end)
+        
+        if success then
+            return true
+        else
+            NotifyInfo("Clipboard", "Teks siap disalin: " .. teks)
+            return false
+        end
+    else
+        setclipboard(teks)
+        return true
+    end
+end
+
+local function OptimalkanUntukMobile()
+    if not IS_MOBILE then return end
+    
+    settings().Rendering.QualityLevel = 1
+    workspace.Terrain.Decoration = false
+    workspace.Terrain.WaterReflection = false
+    
+    local Lighting = game:GetService("Lighting")
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 50000
+    
+    for _, effect in pairs(Lighting:GetChildren()) do
+        if effect:IsA("PostEffect") then
+            effect.Enabled = false
+        end
+    end
+end
+
+local function OptimalkanUntukDesktop()
+    if not IS_DESKTOP then return end
+    
+    settings().Rendering.QualityLevel = 5
+end
+
+-------------------------------------------
+----- =======[ MEMUAT WINDOW ] =======
+-------------------------------------------
+
+local ukuranWindow = IS_MOBILE and UDim2.fromOffset(450, 350) or UDim2.fromOffset(600, 450)
+
+local Window = WindUI:CreateWindow({
+    Title = "SOVEREIGN - Booster [" .. PLATFORM .. "]",
+    Icon = "zap",
+    Author = "Discord @mikpley | " .. PLATFORM,
+    Folder = "SOVEREIGN",
+    Size = ukuranWindow,
+    Theme = "Indigo",
+    KeySystem = false
+})
+
+-- Hanya set toggle key untuk desktop
+if IS_DESKTOP then
+    Window:SetToggleKey(Enum.KeyCode.G)
+end
+
+WindUI:SetNotificationLower(true)
+
+WindUI:Notify({
+	Title = "SOVEREIGN - Booster",
+	Content = "Script Berhasil Dimuat! [" .. PLATFORM .. "]",
+	Duration = 5,
+	Image = "square-check-big"
+})
+
+-------------------------------------------
+----- =======[ TAB UTAMA ] =======
+-------------------------------------------
+
+local TabOptimasi = Window:Tab({
+    Title = "Optimasi",
+    Icon = "zap"
+})
+
+local TabInformasi = Window:Tab({
+    Title = "Informasi",
+    Icon = "info"
+})
+
+local TabMobile = IS_MOBILE and Window:Tab({
+    Title = "Mobile",
+    Icon = "smartphone"
+})
+
+local TabPengaturan = Window:Tab({ 
+	Title = "Pengaturan", 
+	Icon = "user-cog" 
+})
+
+-------------------------------------------
+----- =======[ TAB OPTIMASI ] =======
+-------------------------------------------
+
+local SectionFrameRate = TabOptimasi:Section({
+	Title = "Kontrol Frame Rate",
+	Icon = "gauge"
+})
+
+SectionFrameRate:Paragraph({
+	Title = "Pengaturan Frame Rate",
+	Content = IS_MOBILE and "Atur batas FPS (Mobile: Maks 120 FPS)" or "Atur batas FPS untuk performa lebih baik"
+})
+
+-- Simpan nilai FPS yang dipilih
+local FPSterpilih = IS_MOBILE and "60 FPS" or "120 FPS"
+
+local opsiFPS = IS_MOBILE and {"15 FPS", "30 FPS", "60 FPS", "90 FPS", "120 FPS"} 
+                or {"15 FPS", "30 FPS", "60 FPS", "120 FPS", "144 FPS", "240 FPS", "Tidak Terbatas"}
+
+SectionFrameRate:Dropdown({
+    Title = "Frame Rate",
+    Content = IS_MOBILE and "Batas FPS Mobile" or "Atur batas maksimal FPS",
+    Values = opsiFPS,
+    Callback = function(yangDipilih)
+        FPSterpilih = yangDipilih
+        NotifyInfo("Frame Rate", "Dipilih: " .. yangDipilih .. " - Klik Terapkan untuk konfirmasi")
+    end
+})
+
+SectionFrameRate:Button({
+    Title = "Terapkan Pengaturan FPS",
+    Content = "Terapkan batas FPS yang dipilih",
+    Callback = function()
+        local batasFPS = {
+            ["15 FPS"] = 15,
+            ["30 FPS"] = 30,
+            ["60 FPS"] = 60,
+            ["90 FPS"] = 90,
+            ["120 FPS"] = 120,
+            ["144 FPS"] = 144,
+            ["240 FPS"] = 240,
+            ["Tidak Terbatas"] = 0
+        }
+        
+        local fps = batasFPS[FPSterpilih]
+        if fps then
+            local hasil = AturBatasFPS(fps)
+            NotifySuccess("Frame Rate", "FPS diatur ke " .. hasil)
+        else
+            NotifyError("Frame Rate", "Pilihan FPS tidak valid")
+        end
+    end
+})
+
+local SectionGrafik = TabOptimasi:Section({
+	Title = "Optimasi Grafik",
+	Icon = "monitor"
+})
+
+SectionGrafik:Paragraph({
+	Title = "Pengaturan Kualitas Visual",
+	Content = "Kurangi kualitas grafik untuk performa lebih baik"
+})
+
+SectionGrafik:Toggle({
+    Title = "Kualitas Tekstur Terendah",
+    Content = "Atur kualitas tekstur ke minimum",
+    Callback = function(nilai)
+        if nilai then
+            settings().Rendering.QualityLevel = 1
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("Part") then
+                    obj.Material = Enum.Material.Plastic
+                elseif obj:IsA("Decal") then
+                    obj.Texture = ""
+                end
+            end
+            NotifySuccess("Tekstur", "Kualitas tekstur diatur ke terendah")
+        else
+            settings().Rendering.QualityLevel = 10
+            NotifyInfo("Tekstur", "Kualitas tekstur dikembalikan ke default")
+        end
+    end
+})
+
+SectionGrafik:Toggle({
+    Title = "Grafik Terendah",
+    Content = "Atur keseluruhan grafik ke minimum",
+    Callback = function(nilai)
+        local Lighting = game:GetService("Lighting")
+        if nilai then
+            settings().Rendering.QualityLevel = 1
+            
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 100000
+            Lighting.Brightness = 1
+            
+            for _, effect in pairs(Lighting:GetChildren()) do
+                if effect:IsA("PostEffect") then
+                    effect.Enabled = false
+                end
+            end
+            
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("Part") then
+                    obj.Material = Enum.Material.Plastic
+                    obj.Reflectance = 0
+                end
+            end
+            
+            NotifySuccess("Grafik", "Grafik diatur ke terendah")
+        else
+            settings().Rendering.QualityLevel = IS_MOBILE and 5 or 10
+            Lighting.GlobalShadows = not IS_MOBILE
+            Lighting.FogEnd = 1000000
+            Lighting.Brightness = 2
+            
+            if IS_DESKTOP then
+                for _, effect in pairs(Lighting:GetChildren()) do
+                    if effect:IsA("PostEffect") then
+                        effect.Enabled = true
+                    end
+                end
+            end
+            
+            NotifyInfo("Grafik", "Grafik dikembalikan ke " .. (IS_MOBILE and "default mobile" or "default"))
+        end
+    end
+})
+
+local SectionPartikel = TabOptimasi:Section({
+	Title = "Partikel & Efek",
+	Icon = "sparkles"
+})
+
+SectionPartikel:Paragraph({
+	Title = "Kontrol Partikel",
+	Content = "Kurangi atau nonaktifkan partikel untuk FPS lebih baik"
+})
+
+SectionPartikel:Toggle({
+    Title = "Mode Partikel Rendah",
+    Content = "Kurangi efek partikel dan emisi",
+    Callback = function(nilai)
+        if nilai then
+            local nilaiAsli = {}
+            
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") then
+                    nilaiAsli[obj] = {Rate = obj.Rate, Lifetime = obj.Lifetime}
+                    obj.Rate = math.min(obj.Rate, IS_MOBILE and 5 or 10)
+                    obj.Lifetime = NumberRange.new(0.5)
+                elseif obj:IsA("Fire") or obj:IsA("Smoke") then
+                    nilaiAsli[obj] = obj.Enabled
+                    obj.Enabled = false
+                elseif obj:IsA("Explosion") then
+                    obj.BlastPressure = 0
+                    obj.BlastRadius = 0
+                end
+            end
+            
+            workspace:SetAttribute("NilaiPartikelAsli", nilaiAsli)
+            
+            local Lighting = game:GetService("Lighting")
+            for _, effect in pairs(Lighting:GetChildren()) do
+                if effect:IsA("BlurEffect") or effect:IsA("SunRaysEffect") then
+                    effect.Enabled = false
+                end
+            end
+            
+            NotifySuccess("Partikel", "Efek partikel dikurangi")
+        else
+            local nilaiAsli = workspace:GetAttribute("NilaiPartikelAsli") or {}
+            
+            for obj, values in pairs(nilaiAsli) do
+                if obj and obj.Parent then
+                    if obj:IsA("ParticleEmitter") then
+                        obj.Rate = values.Rate
+                        obj.Lifetime = values.Lifetime
+                    elseif obj:IsA("Fire") or obj:IsA("Smoke") then
+                        obj.Enabled = values
+                    end
+                end
+            end
+            
+            if IS_DESKTOP then
+                local Lighting = game:GetService("Lighting")
+                for _, effect in pairs(Lighting:GetChildren()) do
+                    if effect:IsA("BlurEffect") or effect:IsA("SunRaysEffect") then
+                        effect.Enabled = true
+                    end
+                end
+            end
+            
+            NotifyInfo("Partikel", "Efek partikel dikembalikan")
+        end
+    end
+})
+
+local SectionLanjutan = TabOptimasi:Section({
+	Title = "Optimasi Lanjutan",
+	Icon = "settings"
+})
+
+SectionLanjutan:Paragraph({
+	Title = "Performa Lanjutan",
+	Content = "Fitur optimasi tambahan"
+})
+
+SectionLanjutan:Toggle({
+    Title = "Kurangi Detail Terrain",
+    Content = "Minimalkan kualitas rendering terrain",
+    Callback = function(nilai)
+        if nilai then
+            workspace.Terrain.Decoration = false
+            workspace.Terrain.WaterReflection = false
+            workspace.Terrain.WaterTransparency = 0.5
+            NotifySuccess("Terrain", "Detail terrain dikurangi")
+        else
+            workspace.Terrain.Decoration = not IS_MOBILE
+            workspace.Terrain.WaterReflection = not IS_MOBILE
+            workspace.Terrain.WaterTransparency = 0.3
+            NotifyInfo("Terrain", "Detail terrain dikembalikan ke " .. (IS_MOBILE and "default mobile" or "default"))
+        end
+    end
+})
+
+SectionLanjutan:Button({
+    Title = "Optimalkan Semua Cepat",
+    Content = "Terapkan semua pengaturan optimasi sekaligus",
+    Callback = function()
+        local targetFPS = IS_MOBILE and 60 or 120
+        AturBatasFPS(targetFPS)
+        
+        settings().Rendering.QualityLevel = 1
+        local Lighting = game:GetService("Lighting")
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = IS_MOBILE and 50000 or 100000
+        
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Part") then
+                obj.Material = Enum.Material.Plastic
+                obj.Reflectance = 0
+            elseif obj:IsA("ParticleEmitter") then
+                obj.Rate = math.min(obj.Rate, IS_MOBILE and 3 or 5)
+            elseif (obj:IsA("Fire") or obj:IsA("Smoke")) then
+                obj.Enabled = false
+            end
+        end
+        
+        workspace.Terrain.Decoration = false
+        workspace.Terrain.WaterReflection = false
+        
+        NotifySuccess("Optimasi Cepat", "Semua pengaturan optimasi diterapkan untuk " .. PLATFORM)
+    end
+})
+
+-------------------------------------------
+----- =======[ TAB MOBILE ] =======
+-------------------------------------------
+
+if IS_MOBILE then
+    local SectionOptimasiMobile = TabMobile:Section({
+        Title = "Optimasi Mobile",
+        Icon = "smartphone"
+    })
+    
+    SectionOptimasiMobile:Paragraph({
+        Title = "Pengaturan Spesifik Mobile",
+        Content = "Optimasi khusus untuk perangkat mobile"
+    })
+    
+    SectionOptimasiMobile:Toggle({
+        Title = "Mode Penghemat Baterai",
+        Content = "Kurangi performa untuk daya tahan baterai lebih lama",
+        Callback = function(nilai)
+            if nilai then
+                AturBatasFPS(30)
+                settings().Rendering.QualityLevel = 1
+                NotifySuccess("Penghemat Baterai", "Mode penghemat baterai diaktifkan (30 FPS)")
+            else
+                AturBatasFPS(60)
+                settings().Rendering.QualityLevel = 3
+                NotifyInfo("Penghemat Baterai", "Mode penghemat baterai dinonaktifkan")
+            end
+        end
+    })
+    
+    SectionOptimasiMobile:Toggle({
+        Title = "Optimasi Sentuh",
+        Content = "Optimalkan untuk kontrol sentuh dan responsivitas",
+        Callback = function(nilai)
+            if nilai then
+                UserInputService.TouchEnabled = true
+                RunService:SetThrottleFramerateEnabled(false)
+                NotifySuccess("Sentuh", "Optimasi sentuh diaktifkan")
+            else
+                RunService:SetThrottleFramerateEnabled(true)
+                NotifyInfo("Sentuh", "Optimasi sentuh dinonaktifkan")
+            end
+        end
+    })
+    
+    local SectionAntarmukaMobile = TabMobile:Section({
+        Title = "Antarmuka Mobile",
+        Icon = "layout"
+    })
+    
+    SectionAntarmukaMobile:Toggle({
+        Title = "Tombol Sentuh Besar",
+        Content = "Tingkatkan ukuran elemen UI untuk sentuh",
+        Callback = function(nilai)
+            if nilai then
+                Window:SetSize(UDim2.fromOffset(400, 300))
+                NotifyInfo("UI", "Tombol sentuh besar diaktifkan")
+            else
+                Window:SetSize(UDim2.fromOffset(450, 350))
+                NotifyInfo("UI", "Tombol sentuh besar dinonaktifkan")
+            end
+        end
+    })
+    
+    SectionAntarmukaMobile:Button({
+        Title = "Terapkan Optimasi Mobile",
+        Content = "Terapkan semua pengaturan mobile yang direkomendasikan",
+        Callback = function()
+            OptimalkanUntukMobile()
+            AturBatasFPS(60)
+            NotifySuccess("Mobile", "Semua optimasi mobile diterapkan!")
+        end
+    })
+end
+
+-------------------------------------------
+----- =======[ TAB INFORMASI ] =======
+-------------------------------------------
+
+local SectionInfoScript = TabInformasi:Section({
+	Title = "Informasi Script",
+	Icon = "info"
+})
+
+SectionInfoScript:Paragraph({
+	Title = "SOVEREIGN - Booster",
+	Content = "Script optimasi canggih untuk semua game Roblox"
+})
+
+SectionInfoScript:Label({
+	Title = "Versi",
+	Content = "1.0.21"
+})
+
+SectionInfoScript:Label({
+	Title = "Pengembang",
+	Content = "@mikpley"
+})
+
+SectionInfoScript:Label({
+	Title = "Platform",
+	Content = PLATFORM
+})
+
+SectionInfoScript:Label({
+	Title = "Game yang Didukung",
+	Content = "Semua Pengalaman Roblox"
+})
+
+local SectionPerforma = TabInformasi:Section({
+	Title = "Statistik Performa",
+	Icon = "bar-chart"
+})
+
+local labelFPS = SectionPerforma:Label({
+	Title = "FPS Saat Ini",
+	Content = "Menghitung..."
+})
+
+local labelPing = SectionPerforma:Label({
+	Title = "Ping",
+	Content = "Menghitung..."
+})
+
+local labelMemori = SectionPerforma:Label({
+	Title = "Penggunaan Memori",
+	Content = "Menghitung..."
+})
+
+local labelPlatform = SectionPerforma:Label({
+	Title = "Platform",
+	Content = PLATFORM
+})
+
+-- Monitoring performa real-time
+task.spawn(function()
+    local hitunganFrame = 0
+    local waktuTerakhir = tick()
+    
+    while task.wait(0.1) do
+        hitunganFrame = hitunganFrame + 1
+        local waktuSekarang = tick()
+        
+        if waktuSekarang - waktuTerakhir >= 1 then
+            local fps = math.floor(hitunganFrame / (waktuSekarang - waktuTerakhir))
+            hitunganFrame = 0
+            waktuTerakhir = waktuSekarang
+            
+            if labelFPS then
+                labelFPS:SetContent(tostring(fps) .. " FPS")
+            end
+        end
+        
+        local sukses, ping = pcall(function()
+            return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+        end)
+        
+        if sukses and labelPing then
+            labelPing:SetContent(tostring(math.floor(ping)) .. " ms")
+        end
+        
+        local memori = math.floor(Stats:GetTotalMemoryUsageMb())
+        if labelMemori then
+            labelMemori:SetContent(tostring(memori) .. " MB")
+        end
+    end
+end)
+
+local SectionDukungan = TabInformasi:Section({
+	Title = "Dukungan & Fitur",
+	Icon = "help-circle"
+})
+
+SectionDukungan:Paragraph({
+	Title = "Fitur Optimasi",
+	Content = "• Kontrol Frame Rate\n• Kualitas Tekstur\n• Pengaturan Grafik\n• Pengurangan Partikel\n• Optimasi Terrain\n• Monitoring Real-time\n• Dukungan " .. PLATFORM
+})
+
+SectionDukungan:Button({
+    Title = "Salin Discord",
+    Content = "Klik untuk menyalin Discord dukungan",
+    Callback = function()
+        if SalinKeClipboard("https://discord.gg/mikpley") then
+            NotifySuccess("Discord", "Discord dukungan disalin ke clipboard!")
+        else
+            NotifyInfo("Discord", "Discord: https://discord.gg/mikpley")
+        end
+    end
+})
+
+-------------------------------------------
+----- =======[ TAB PENGATURAN ] =======
+-------------------------------------------
+
+local SectionKonfigurasi = TabPengaturan:Section({
+	Title = "Konfigurasi",
+	Icon = "save"
+})
+
+SectionKonfigurasi:Paragraph({
+	Title = "Manajemen Pengaturan",
+	Content = "Kelola konfigurasi dan preferensi script Anda"
+})
+
+local ManajerKonfig = Window.ConfigManager
+local konfigSaya = ManajerKonfig:CreateConfig("KonfigSOVEREIGN")
+
+SectionKonfigurasi:Button({
+    Title = "Simpan Pengaturan",
+    Content = "Simpan konfigurasi saat ini",
+    Callback = function()
+        konfigSaya:Save()
+        NotifySuccess("Konfig Disimpan", "Konfigurasi telah disimpan!")
+    end
+})
+
+SectionKonfigurasi:Button({
+    Title = "Muat Pengaturan",
+    Content = "Muat konfigurasi yang disimpan",
+    Callback = function()
+        konfigSaya:Load()
+        NotifySuccess("Konfig Dimuat", "Konfigurasi telah dimuat!")
+    end
+})
+
+SectionKonfigurasi:Button({
+    Title = "Reset Pengaturan",
+    Content = "Reset ke konfigurasi default",
+    Callback = function()
+        konfigSaya:Reset()
+        NotifySuccess("Konfig Direset", "Konfigurasi telah direset ke default!")
+    end
+})
+
+local SectionUI = TabPengaturan:Section({
+	Title = "Pengaturan UI",
+    Icon = "monitor"
+})
+
+SectionUI:Toggle({
+    Title = "Mode Kompak",
+    Content = "Perkecil ukuran UI untuk layar kecil",
+    Callback = function(nilai)
+        if nilai then
+            local ukuranBaru = IS_MOBILE and UDim2.fromOffset(350, 250) or UDim2.fromOffset(500, 350)
+            Window:SetSize(ukuranBaru)
+            NotifyInfo("UI", "Mode kompak diaktifkan")
+        else
+            local ukuranDefault = IS_MOBILE and UDim2.fromOffset(450, 350) or UDim2.fromOffset(600, 450)
+            Window:SetSize(ukuranDefault)
+            NotifyInfo("UI", "Mode kompak dinonaktifkan")
+        end
+    end
+})
+
+SectionUI:Button({
+    Title = "Muat Ulang UI",
+    Content = "Segarkan antarmuka pengguna",
+    Callback = function()
+        WindUI:Notify({
+            Title = "UI Dimuat Ulang",
+            Content = "Antarmuka pengguna telah disegarkan",
+            Duration = 3,
+            Icon = "refresh-cw"
+        })
+    end
+})
+
+-- Optimasi otomatis spesifik platform
+if IS_MOBILE then
+    task.spawn(function()
+        task.wait(2)
+        OptimalkanUntukMobile()
+        NotifyInfo("Optimasi Otomatis", "Optimasi mobile diterapkan secara otomatis")
+    end)
+elseif IS_DESKTOP then
+    task.spawn(function()
+        task.wait(2)
+        OptimalkanUntukDesktop()
+    end)
+end
+
+WindUI:Notify({
+	Title = "SOVEREIGN - Booster",
+	Content = "Script optimasi berhasil dimuat untuk " .. PLATFORM .. "!",
+	Duration = 5,
+	Icon = "circle-check"
+})
+
+-- Pesan inisialisasi akhir
+task.wait(1)
+local pesanToggle = IS_DESKTOP and "Gunakan tombol 'G' untuk toggle UI" or "Ketuk untuk berinteraksi dengan UI"
+NotifyInfo("SOVEREIGN - Booster", pesanToggle .. "\nPlatform: " .. PLATFORM .. "\nSemua fitur dioptimalkan untuk perangkat Anda!")

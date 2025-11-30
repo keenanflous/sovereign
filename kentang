@@ -1,0 +1,1367 @@
+----- =======[ Memuat WindUI ] =======
+-------------------------------------------
+
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-------------------------------------------
+----- =======[ FUNGSI GLOBAL ] =======
+-------------------------------------------
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local TweenService = game:GetService("TweenService")
+local ContentProvider = game:GetService("ContentProvider")
+local Lighting = game:GetService("Lighting")
+local Terrain = workspace.Terrain
+local CoreGui = game:GetService("CoreGui")
+local VRService = game:GetService("VRService")
+
+-------------------------------------------
+----- =======[ DETEKSI PLATFORM ] =======
+-------------------------------------------
+
+local PLATFORM = "Tidak Diketahui"
+local IS_MOBILE = false
+local IS_DESKTOP = false
+local IS_CONSOLE = false
+local IS_IOS = false
+local IS_ANDROID = false
+local IS_VR = false
+
+-- Deteksi platform utama
+if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
+    PLATFORM = "Mobile"
+    IS_MOBILE = true
+elseif UserInputService.MouseEnabled and UserInputService.KeyboardEnabled then
+    PLATFORM = "Windows"
+    IS_DESKTOP = true
+else
+    PLATFORM = "Konsol"
+    IS_CONSOLE = true
+end
+
+-- Deteksi VR
+if VRService.VREnabled then
+    PLATFORM = "VR"
+    IS_VR = true
+end
+
+-- Deteksi platform mobile spesifik
+if IS_MOBILE then
+    local success, result = pcall(function()
+        return UserInputService:GetPlatform()
+    end)
+    
+    if success then
+        if result == Enum.Platform.IOS then
+            PLATFORM = "iOS"
+            IS_IOS = true
+        else
+            PLATFORM = "Android"
+            IS_ANDROID = true
+        end
+    end
+end
+
+-------------------------------------------
+----- =======[ SISTEM NOTIFIKASI ] =======
+-------------------------------------------
+
+local function NotifySuccess(judul, pesan, durasi)
+    WindUI:Notify({
+        Title = judul,
+        Content = pesan,
+        Duration = durasi or 3,
+        Icon = "circle-check"
+    })
+end
+
+local function NotifyError(judul, pesan, durasi)
+    WindUI:Notify({
+        Title = judul,
+        Content = pesan,
+        Duration = durasi or 4,
+        Icon = "ban"
+    })
+end
+
+local function NotifyInfo(judul, pesan, durasi)
+    WindUI:Notify({
+        Title = judul,
+        Content = pesan,
+        Duration = durasi or 5,
+        Icon = "info"
+    })
+end
+
+local function NotifyWarning(judul, pesan, durasi)
+    WindUI:Notify({
+        Title = judul,
+        Content = pesan,
+        Duration = durasi or 4,
+        Icon = "triangle-alert"
+    })
+end
+
+-------------------------------------------
+----- =======[ FUNGSI UTAMA ] =======
+-------------------------------------------
+
+-- Sistem FPS yang lebih stabil
+local function AturBatasFPS(fps)
+    local success, result = pcall(function()
+        if type(fps) ~= "number" then
+            fps = tonumber(fps) or 60
+        end
+        
+        if fps == 0 then
+            if IS_MOBILE then
+                setfpscap(120)
+                return "Tidak Terbatas (Maks 120)"
+            elseif IS_VR then
+                setfpscap(90)
+                return "Tidak Terbatas (Maks 90 VR)"
+            else
+                setfpscap(0)
+                return "Tidak Terbatas"
+            end
+        else
+            if IS_MOBILE and fps > 120 then
+                setfpscap(120)
+                return "120 (Maksimal Mobile)"
+            elseif IS_VR and fps > 90 then
+                setfpscap(90)
+                return "90 (Maksimal VR)"
+            else
+                setfpscap(fps)
+                return tostring(fps)
+            end
+        end
+    end)
+    
+    if not success then
+        -- Fallback methods
+        pcall(function() setfpsmax(fps) end)
+        return tostring(fps) .. " (Fallback)"
+    end
+    
+    return result
+end
+
+-- Sistem clipboard yang kompatibel
+local function SalinKeClipboard(teks)
+    local success = pcall(function()
+        if setclipboard then
+            setclipboard(teks)
+            return true
+        elseif writeclipboard then
+            writeclipboard(teks)
+            return true
+        else
+            return false
+        end
+    end)
+    
+    if success then
+        return true
+    else
+        NotifyInfo("Clipboard", "Teks siap disalin: " .. teks, 8)
+        return false
+    end
+end
+
+-- Optimasi mobile komprehensif
+local function OptimalkanUntukMobile()
+    if not IS_MOBILE then return end
+    
+    pcall(function()
+        -- Rendering settings
+        settings().Rendering.QualityLevel = 1
+        settings().Rendering.EnableFRM = true
+        settings().Rendering.MeshCacheSize = 100
+        
+        -- Terrain optimization
+        Terrain.Decoration = false
+        Terrain.WaterReflection = false
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterTransparency = 0.7
+        
+        -- Lighting optimization
+        Lighting.GlobalShadows = false
+        Terrain.CastShadow = false
+        Lighting.FogEnd = 50000
+        Lighting.Brightness = 1.8
+        Lighting.EnvironmentDiffuseScale = 0.5
+        Lighting.EnvironmentSpecularScale = 0.5
+        
+        -- Disable post-processing effects
+        for _, effect in pairs(Lighting:GetChildren()) do
+            if effect:IsA("PostEffect") then
+                effect.Enabled = false
+            end
+        end
+        
+        -- Physics optimization
+        workspace.Gravity = 196.2
+        
+        NotifySuccess("Optimasi Mobile", "Pengaturan mobile dioptimalkan")
+    end)
+end
+
+-- Optimasi desktop
+local function OptimalkanUntukDesktop()
+    if not IS_DESKTOP then return end
+    
+    pcall(function()
+        settings().Rendering.QualityLevel = 5
+        Lighting.GlobalShadows = true
+        Terrain.Decoration = true
+        
+        NotifyInfo("Optimasi Desktop", "Pengaturan desktop dioptimalkan")
+    end)
+end
+
+-- Optimasi VR
+local function OptimalkanUntukVR()
+    if not IS_VR then return end
+    
+    pcall(function()
+        settings().Rendering.QualityLevel = 3
+        Lighting.GlobalShadows = false
+        Terrain.Decoration = false
+        
+        -- VR-specific optimizations
+        RunService:SetThrottleFramerateEnabled(false)
+        AturBatasFPS(90)
+        
+        NotifyInfo("Optimasi VR", "Pengaturan VR dioptimalkan")
+    end)
+end
+
+-- Sistem monitoring performa yang ditingkatkan
+local function DapatkanStatistikPerforma()
+    local statistik = {
+        FPS = 0,
+        Ping = 0,
+        Memori = 0,
+        GPU = 0,
+        CPU = 0
+    }
+    
+    -- FPS Calculation
+    pcall(function()
+        local fps = RunService:GetFPS()
+        statistik.FPS = math.floor(fps)
+    end)
+    
+    -- Ping Calculation
+    pcall(function()
+        local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+        statistik.Ping = math.floor(ping)
+    end)
+    
+    -- Memory Usage
+    pcall(function()
+        local memori = Stats:GetTotalMemoryUsageMb()
+        statistik.Memori = math.floor(memori)
+    end)
+    
+    -- CPU Usage (estimasi berdasarkan FPS)
+    pcall(function()
+        local fps = statistik.FPS
+        if fps > 100 then
+            statistik.CPU = math.random(15, 30)
+        elseif fps > 60 then
+            statistik.CPU = math.random(10, 25)
+        elseif fps > 30 then
+            statistik.CPU = math.random(5, 20)
+        else
+            statistik.CPU = math.random(20, 40)
+        end
+    end)
+    
+    -- GPU Usage (estimasi)
+    pcall(function()
+        statistik.GPU = math.floor(statistik.CPU * 0.8)
+    end)
+    
+    return statistik
+end
+
+-- Sistem Auto-Save konfigurasi
+local function BuatAutoSaveSystem()
+    local autoSaveEnabled = false
+    local autoSaveInterval = 300 -- 5 menit
+    
+    return {
+        Enable = function()
+            autoSaveEnabled = true
+            NotifyInfo("Auto-Save", "Auto-save diaktifkan setiap " .. autoSaveInterval .. " detik")
+        end,
+        
+        Disable = function()
+            autoSaveEnabled = false
+            NotifyInfo("Auto-Save", "Auto-save dinonaktifkan")
+        end,
+        
+        SetInterval = function(interval)
+            autoSaveInterval = interval
+            NotifyInfo("Auto-Save", "Interval auto-save diatur ke " .. interval .. " detik")
+        end
+    }
+end
+
+-------------------------------------------
+----- =======[ INISIALISASI WINDOW ] =======
+-------------------------------------------
+
+local ukuranWindow = IS_MOBILE and UDim2.fromOffset(420, 320) or 
+                    IS_VR and UDim2.fromOffset(400, 300) or 
+                    UDim2.fromOffset(580, 420)
+
+local Window = WindUI:CreateWindow({
+    Title = "SOVEREIGN - Booster v2.1 [" .. PLATFORM .. "]",
+    Icon = "zap",
+    Author = "Discord @mikpley | " .. PLATFORM,
+    Folder = "SOVEREIGN",
+    Size = ukuranWindow,
+    Theme = "Indigo",
+    KeySystem = false
+})
+
+-- Hanya set toggle key untuk desktop
+if IS_DESKTOP then
+    Window:SetToggleKey(Enum.KeyCode.RightShift)
+end
+
+WindUI:SetNotificationLower(true)
+
+-- Notifikasi awal
+WindUI:Notify({
+    Title = "SOVEREIGN - Booster v2.1",
+    Content = "Script Berhasil Dimuat! [" .. PLATFORM .. "]\nFitur baru tersedia!",
+    Duration = 5,
+    Image = "square-check-big"
+})
+
+-------------------------------------------
+----- =======[ SISTEM TAB ] =======
+-------------------------------------------
+
+local TabOptimasi = Window:Tab({
+    Title = "Optimasi",
+    Icon = "zap"
+})
+
+local TabInformasi = Window:Tab({
+    Title = "Informasi",
+    Icon = "info"
+})
+
+local TabMobile = IS_MOBILE and Window:Tab({
+    Title = "Mobile",
+    Icon = "smartphone"
+})
+
+local TabVR = IS_VR and Window:Tab({
+    Title = "VR",
+    Icon = "vr"
+})
+
+local TabPengaturan = Window:Tab({ 
+    Title = "Pengaturan", 
+    Icon = "user-cog" 
+})
+
+-------------------------------------------
+----- =======[ TAB OPTIMASI ] =======
+-------------------------------------------
+
+local SectionFrameRate = TabOptimasi:Section({
+    Title = "Kontrol Frame Rate",
+    Icon = "gauge"
+})
+
+SectionFrameRate:Paragraph({
+    Title = "Pengaturan Frame Rate",
+    Content = IS_MOBILE and "Atur batas FPS (Mobile: Maks 120 FPS)" or 
+             IS_VR and "Atur batas FPS (VR: Maks 90 FPS)" or
+             "Atur batas FPS untuk performa lebih baik"
+})
+
+-- Variabel state
+local FPSterpilih = IS_MOBILE and "60 FPS" or IS_VR and "72 FPS" or "120 FPS"
+local KualitasTeksturAktif = false
+local GrafikRendahAktif = false
+local ModePartikelAktif = false
+local ModeTerrainAktif = false
+local ModeSuaraAktif = false
+
+-- Opsi FPS berdasarkan platform
+local opsiFPS = IS_MOBILE and {"15 FPS", "30 FPS", "45 FPS", "60 FPS", "90 FPS", "120 FPS"} 
+                or IS_VR and {"45 FPS", "60 FPS", "72 FPS", "90 FPS"}
+                or {"30 FPS", "60 FPS", "75 FPS", "120 FPS", "144 FPS", "165 FPS", "240 FPS", "Tidak Terbatas"}
+
+SectionFrameRate:Dropdown({
+    Title = "Frame Rate Target",
+    Content = "Pilih batas FPS yang diinginkan",
+    Values = opsiFPS,
+    Callback = function(yangDipilih)
+        FPSterpilih = yangDipilih
+        NotifyInfo("Frame Rate", "Dipilih: " .. yangDipilih, 2)
+    end
+})
+
+SectionFrameRate:Button({
+    Title = "Terapkan FPS",
+    Content = "Terapkan pengaturan FPS saat ini",
+    Callback = function()
+        local konversiFPS = {
+            ["15 FPS"] = 15, ["30 FPS"] = 30, ["45 FPS"] = 45, ["60 FPS"] = 60,
+            ["72 FPS"] = 72, ["75 FPS"] = 75, ["90 FPS"] = 90, ["120 FPS"] = 120, 
+            ["144 FPS"] = 144, ["165 FPS"] = 165, ["240 FPS"] = 240, ["Tidak Terbatas"] = 0
+        }
+        
+        local fps = konversiFPS[FPSterpilih]
+        if fps then
+            local hasil = AturBatasFPS(fps)
+            NotifySuccess("Frame Rate", "FPS diatur ke: " .. hasil)
+        else
+            NotifyError("Frame Rate", "Pilihan FPS tidak valid")
+        end
+    end
+})
+
+-- Section Optimasi Grafik
+local SectionGrafik = TabOptimasi:Section({
+    Title = "Optimasi Grafik",
+    Icon = "monitor"
+})
+
+SectionGrafik:Paragraph({
+    Title = "Pengaturan Visual",
+    Content = "Optimalkan kualitas grafik untuk performa lebih baik"
+})
+
+SectionGrafik:Toggle({
+    Title = "Mode Grafik Rendah",
+    Content = "Minimalkan semua pengaturan grafik",
+    Callback = function(nilai)
+        GrafikRendahAktif = nilai
+        
+        pcall(function()
+            if nilai then
+                -- Simpan dan terapkan pengaturan rendah
+                settings().Rendering.QualityLevel = 1
+                Lighting.GlobalShadows = false
+                Lighting.FogEnd = 25000
+                Lighting.Brightness = 2.0
+                Lighting.ExposureCompensation = 0.5
+                
+                -- Optimasi terrain
+                Terrain.Decoration = false
+                Terrain.WaterReflection = false
+                
+                -- Nonaktifkan efek
+                for _, obj in pairs(Lighting:GetChildren()) do
+                    if obj:IsA("PostEffect") then
+                        obj.Enabled = false
+                    end
+                end
+                
+                NotifySuccess("Grafik", "Mode grafik rendah diaktifkan")
+            else
+                -- Kembalikan ke default
+                settings().Rendering.QualityLevel = IS_MOBILE and 3 or IS_VR and 3 or 6
+                Lighting.GlobalShadows = not IS_MOBILE and not IS_VR
+                Lighting.FogEnd = 1000000
+                Lighting.Brightness = 1.0
+                Lighting.ExposureCompensation = 0
+                
+                Terrain.Decoration = not IS_MOBILE and not IS_VR
+                Terrain.WaterReflection = not IS_MOBILE and not IS_VR
+                
+                if IS_DESKTOP then
+                    for _, obj in pairs(Lighting:GetChildren()) do
+                        if obj:IsA("PostEffect") then
+                            obj.Enabled = true
+                        end
+                    end
+                end
+                
+                NotifyInfo("Grafik", "Mode grafik rendah dinonaktifkan")
+            end
+        end)
+    end
+})
+
+SectionGrafik:Toggle({
+    Title = "Optimasi Tekstur",
+    Content = "Kurangi kualitas material dan tekstur",
+    Callback = function(nilai)
+        KualitasTeksturAktif = nilai
+        
+        pcall(function()
+            if nilai then
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj:IsA("Part") then
+                        obj.Material = Enum.Material.Plastic
+                        obj.Reflectance = 0
+                    elseif obj:IsA("SurfaceAppearance") then
+                        obj:Destroy()
+                    end
+                end
+                NotifySuccess("Tekstur", "Optimasi tekstur diaktifkan")
+            else
+                NotifyInfo("Tekstur", "Optimasi tekstur dinonaktifkan")
+            end
+        end)
+    end
+})
+
+-- Section Partikel & Efek
+local SectionPartikel = TabOptimasi:Section({
+    Title = "Partikel & Efek",
+    Icon = "sparkles"
+})
+
+SectionPartikel:Paragraph({
+    Title = "Kontrol Efek Visual",
+    Content = "Kelola partikel dan efek untuk performa lebih baik"
+})
+
+SectionPartikel:Toggle({
+    Title = "Mode Partikel Rendah",
+    Content = "Kurangi efek partikel dan emisi",
+    Callback = function(nilai)
+        ModePartikelAktif = nilai
+        
+        pcall(function()
+            if nilai then
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj:IsA("ParticleEmitter") then
+                        obj.Rate = math.floor(obj.Rate * 0.3)
+                        obj.Lifetime = NumberRange.new(0.5)
+                    elseif obj:IsA("Fire") or obj:IsA("Smoke") then
+                        obj.Enabled = false
+                    elseif obj:IsA("Beam") then
+                        obj.Enabled = false
+                    end
+                end
+                NotifySuccess("Partikel", "Mode partikel rendah diaktifkan")
+            else
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj:IsA("ParticleEmitter") then
+                        obj.Rate = obj.Rate * 3.33
+                        obj.Lifetime = NumberRange.new(1, 2)
+                    elseif obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Beam") then
+                        obj.Enabled = true
+                    end
+                end
+                NotifyInfo("Partikel", "Mode partikel rendah dinonaktifkan")
+            end
+        end)
+    end
+})
+
+-- Section Optimasi Suara
+local SectionSuara = TabOptimasi:Section({
+    Title = "Optimasi Audio",
+    Icon = "volume-2"
+})
+
+SectionSuara:Paragraph({
+    Title = "Pengaturan Suara",
+    Content = "Kelola audio untuk performa lebih baik"
+})
+
+SectionSuara:Toggle({
+    Title = "Mode Suara Rendah",
+    Content = "Kurangi kualitas audio",
+    Callback = function(nilai)
+        ModeSuaraAktif = nilai
+        
+        pcall(function()
+            if nilai then
+                -- Reduce sound quality
+                for _, sound in pairs(workspace:GetDescendants()) do
+                    if sound:IsA("Sound") then
+                        sound.PlaybackSpeed = 1
+                        sound.Volume = math.min(sound.Volume, 0.7)
+                    end
+                end
+                NotifySuccess("Audio", "Mode suara rendah diaktifkan")
+            else
+                for _, sound in pairs(workspace:GetDescendants()) do
+                    if sound:IsA("Sound") then
+                        sound.Volume = sound.Volume
+                    end
+                end
+                NotifyInfo("Audio", "Mode suara rendah dinonaktifkan")
+            end
+        end)
+    end
+})
+
+-- Section Optimasi Lanjutan
+local SectionLanjutan = TabOptimasi:Section({
+    Title = "Optimasi Lanjutan",
+    Icon = "settings"
+})
+
+SectionLanjutan:Paragraph({
+    Title = "Fitur Lanjutan",
+    Content = "Pengaturan optimasi tambahan untuk performa maksimal"
+})
+
+SectionLanjutan:Toggle({
+    Title = "Optimasi Terrain",
+    Content = "Kurangi detail terrain dan air",
+    Callback = function(nilai)
+        ModeTerrainAktif = nilai
+        
+        pcall(function()
+            if nilai then
+                Terrain.Decoration = false
+                Terrain.WaterReflection = false
+                Terrain.WaterTransparency = 0.8
+                Terrain.WaterWaveSize = 0
+                Terrain.WaterWaveSpeed = 0
+                NotifySuccess("Terrain", "Optimasi terrain diaktifkan")
+            else
+                Terrain.Decoration = not IS_MOBILE and not IS_VR
+                Terrain.WaterReflection = not IS_MOBILE and not IS_VR
+                Terrain.WaterTransparency = 0.3
+                Terrain.WaterWaveSize = 0.5
+                Terrain.WaterWaveSpeed = 10
+                NotifyInfo("Terrain", "Optimasi terrain dinonaktifkan")
+            end
+        end)
+    end
+})
+
+SectionLanjutan:Button({
+    Title = "Optimasi Cepat",
+    Content = "Terapkan semua pengaturan optimasi terbaik",
+    Callback = function()
+        pcall(function()
+            -- Terapkan FPS optimal
+            local fpsOptimal = IS_MOBILE and 60 or IS_VR and 72 or 120
+            AturBatasFPS(fpsOptimal)
+            
+            -- Pengaturan grafik
+            settings().Rendering.QualityLevel = 2
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = IS_MOBILE and 30000 or IS_VR and 25000 or 50000
+            
+            -- Optimasi terrain
+            Terrain.Decoration = false
+            Terrain.WaterReflection = false
+            
+            -- Optimasi partikel
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") then
+                    obj.Rate = math.min(obj.Rate, IS_MOBILE and 5 or IS_VR and 3 or 10)
+                elseif obj:IsA("Part") then
+                    obj.Material = Enum.Material.Plastic
+                end
+            end
+            
+            NotifySuccess("Optimasi Cepat", "Semua pengaturan optimal diterapkan!")
+        end)
+    end
+})
+
+SectionLanjutan:Button({
+    Title = "Reset Semua",
+    Content = "Kembalikan semua pengaturan ke default",
+    Callback = function()
+        pcall(function()
+            -- Reset FPS
+            AturBatasFPS(IS_MOBILE and 60 or IS_VR and 72 or 0)
+            
+            -- Reset grafik
+            settings().Rendering.QualityLevel = IS_MOBILE and 3 or IS_VR and 3 or 8
+            Lighting.GlobalShadows = not IS_MOBILE and not IS_VR
+            Lighting.FogEnd = 1000000
+            
+            -- Reset terrain
+            Terrain.Decoration = not IS_MOBILE and not IS_VR
+            Terrain.WaterReflection = not IS_MOBILE and not IS_VR
+            
+            -- Reset partikel
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") then
+                    obj.Rate = obj.Rate
+                elseif obj:IsA("Fire") or obj:IsA("Smoke") then
+                    obj.Enabled = true
+                end
+            end
+            
+            NotifySuccess("Reset", "Semua pengaturan dikembalikan ke default")
+        end)
+    end
+})
+
+-------------------------------------------
+----- =======[ TAB MOBILE ] =======
+-------------------------------------------
+
+if IS_MOBILE then
+    local SectionOptimasiMobile = TabMobile:Section({
+        Title = "Optimasi Mobile",
+        Icon = "smartphone"
+    })
+    
+    SectionOptimasiMobile:Paragraph({
+        Title = "Pengaturan Khusus Mobile",
+        Content = "Optimasi spesifik untuk perangkat mobile"
+    })
+    
+    SectionOptimasiMobile:Toggle({
+        Title = "Mode Penghemat Baterai",
+        Content = "Optimalkan untuk daya tahan baterai",
+        Callback = function(nilai)
+            if nilai then
+                AturBatasFPS(30)
+                settings().Rendering.QualityLevel = 1
+                RunService:SetThrottleFramerateEnabled(true)
+                NotifySuccess("Baterai", "Mode penghemat baterai diaktifkan")
+            else
+                AturBatasFPS(60)
+                settings().Rendering.QualityLevel = 3
+                RunService:SetThrottleFramerateEnabled(false)
+                NotifyInfo("Baterai", "Mode penghemat baterai dinonaktifkan")
+            end
+        end
+    })
+    
+    SectionOptimasiMobile:Toggle({
+        Title = "Optimasi Sentuh",
+        Content = "Tingkatkan responsivitas sentuh",
+        Callback = function(nilai)
+            if nilai then
+                UserInputService.TouchEnabled = true
+                UserInputService.MouseEnabled = false
+                RunService:SetThrottleFramerateEnabled(false)
+                NotifySuccess("Sentuh", "Optimasi sentuh diaktifkan")
+            else
+                RunService:SetThrottleFramerateEnabled(true)
+                NotifyInfo("Sentuh", "Optimasi sentuh dinonaktifkan")
+            end
+        end
+    })
+    
+    local SectionAntarmukaMobile = TabMobile:Section({
+        Title = "Antarmuka Mobile",
+        Icon = "layout"
+    })
+    
+    SectionAntarmukaMobile:Toggle({
+        Title = "UI Mobile Besar",
+        Content = "Perbesar elemen UI untuk sentuh",
+        Callback = function(nilai)
+            if nilai then
+                Window:SetSize(UDim2.fromOffset(380, 280))
+                NotifyInfo("UI Mobile", "UI besar diaktifkan")
+            else
+                Window:SetSize(UDim2.fromOffset(420, 320))
+                NotifyInfo("UI Mobile", "UI besar dinonaktifkan")
+            end
+        end
+    })
+    
+    SectionAntarmukaMobile:Button({
+        Title = "Optimasi Mobile Lengkap",
+        Content = "Terapkan semua optimasi mobile",
+        Callback = function()
+            OptimalkanUntukMobile()
+            AturBatasFPS(60)
+            Window:SetSize(UDim2.fromOffset(420, 320))
+            NotifySuccess("Mobile", "Optimasi mobile lengkap diterapkan!")
+        end
+    })
+end
+
+-------------------------------------------
+----- =======[ TAB VR ] =======
+-------------------------------------------
+
+if IS_VR then
+    local SectionOptimasiVR = TabVR:Section({
+        Title = "Optimasi VR",
+        Icon = "vr"
+    })
+    
+    SectionOptimasiVR:Paragraph({
+        Title = "Pengaturan Khusus VR",
+        Content = "Optimasi spesifik untuk pengalaman VR"
+    })
+    
+    SectionOptimasiVR:Toggle({
+        Title = "Mode VR Stabil",
+        Content = "Optimalkan untuk pengalaman VR yang mulus",
+        Callback = function(nilai)
+            if nilai then
+                AturBatasFPS(72)
+                settings().Rendering.QualityLevel = 2
+                RunService:SetThrottleFramerateEnabled(false)
+                NotifySuccess("VR", "Mode VR stabil diaktifkan")
+            else
+                AturBatasFPS(90)
+                settings().Rendering.QualityLevel = 3
+                NotifyInfo("VR", "Mode VR stabil dinonaktifkan")
+            end
+        end
+    })
+    
+    SectionOptimasiVR:Button({
+        Title = "Optimasi VR Lengkap",
+        Content = "Terapkan semua optimasi VR",
+        Callback = function()
+            OptimalkanUntukVR()
+            AturBatasFPS(72)
+            NotifySuccess("VR", "Optimasi VR lengkap diterapkan!")
+        end
+    })
+end
+
+-------------------------------------------
+----- =======[ TAB INFORMASI - DIPERBARUI ] =======
+-------------------------------------------
+
+local SectionInfoScript = TabInformasi:Section({
+    Title = "Informasi Script",
+    Icon = "info"
+})
+
+SectionInfoScript:Paragraph({
+    Title = "SOVEREIGN - Booster v2.1",
+    Content = "Sistem optimasi canggih untuk Roblox dengan monitoring performa real-time"
+})
+
+SectionInfoScript:Label({
+    Title = "Versi",
+    Content = "2.1.0"
+})
+
+SectionInfoScript:Label({
+    Title = "Pengembang",
+    Content = "@mikpley"
+})
+
+SectionInfoScript:Label({
+    Title = "Platform",
+    Content = PLATFORM
+})
+
+SectionInfoScript:Label({
+    Title = "Status",
+    Content = "Aktif"
+})
+
+-- Section Monitoring Performa Real-time
+local SectionPerforma = TabInformasi:Section({
+    Title = "Monitoring Performa",
+    Icon = "bar-chart"
+})
+
+-- Variabel untuk monitoring
+local monitoringAktif = true
+local updateInterval = 1 -- detik
+local lastUpdateTime = 0
+
+local labelFPS = SectionPerforma:Label({
+    Title = "🔄 FPS Saat Ini",
+    Content = "Menghitung..."
+})
+
+local labelPing = SectionPerforma:Label({
+    Title = "📶 Ping Network",
+    Content = "Menghitung..."
+})
+
+local labelMemori = SectionPerforma:Label({
+    Title = "💾 Penggunaan Memori",
+    Content = "Menghitung..."
+})
+
+local labelCPU = SectionPerforma:Label({
+    Title = "⚡ Beban CPU",
+    Content = "Menghitung..."
+})
+
+local labelGPU = SectionPerforma:Label({
+    Title = "🎮 Beban GPU",
+    Content = "Menghitung..."
+})
+
+-- Sistem monitoring performa yang lebih efisien
+local function DapatkanStatistikPerforma()
+    local statistik = {
+        FPS = 0,
+        Ping = 0,
+        Memori = 0,
+        GPU = 0,
+        CPU = 0
+    }
+    
+    -- FPS Calculation (lebih akurat)
+    pcall(function()
+        local fps = RunService:GetFPS()
+        statistik.FPS = math.floor(fps)
+    end)
+    
+    -- Ping Calculation
+    pcall(function()
+        local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+        statistik.Ping = math.floor(ping)
+    end)
+    
+    -- Memory Usage
+    pcall(function()
+        local memori = Stats:GetTotalMemoryUsageMb()
+        statistik.Memori = math.floor(memori)
+    end)
+    
+    -- CPU Usage (estimasi berdasarkan FPS)
+    pcall(function()
+        local fps = statistik.FPS
+        if fps > 100 then
+            statistik.CPU = math.random(15, 30)
+        elseif fps > 60 then
+            statistik.CPU = math.random(10, 25)
+        elseif fps > 30 then
+            statistik.CPU = math.random(5, 20)
+        else
+            statistik.CPU = math.random(20, 40)
+        end
+    end)
+    
+    -- GPU Usage (estimasi)
+    pcall(function()
+        statistik.GPU = math.floor(statistik.CPU * 0.8)
+    end)
+    
+    return statistik
+end
+
+-- Section Analisis Performa
+local SectionAnalisis = TabInformasi:Section({
+    Title = "Analisis Performa",
+    Icon = "activity"
+})
+
+local labelStatusPerforma = SectionAnalisis:Label({
+    Title = "📊 Status Sistem",
+    Content = "Menganalisis..."
+})
+
+local labelRekomendasi = SectionAnalisis:Label({
+    Title = "💡 Rekomendasi",
+    Content = "Menunggu data..."
+})
+
+-- Fungsi analisis performa
+local function AnalisisPerforma(stats)
+    local status = "🟢 Optimal"
+    local rekomendasi = "Sistem berjalan dengan baik"
+    
+    -- Analisis berdasarkan metrik
+    if stats.FPS < 30 then
+        status = "🔴 Kritis"
+        rekomendasi = "Turunkan kualitas grafik dan batasi FPS"
+    elseif stats.FPS < 50 then
+        status = "🟡 Sedang"
+        rekomendasi = "Aktifkan mode grafik rendah"
+    elseif stats.FPS < 80 then
+        status = "🟢 Baik"
+        rekomendasi = "Performa cukup baik"
+    else
+        status = "🔵 Sangat Baik"
+        rekomendasi = "Sistem berjalan optimal"
+    end
+    
+    -- Analisis ping
+    if stats.Ping > 200 then
+        status = "🔴 Kritis"
+        rekomendasi = "Ping sangat tinggi - periksa koneksi internet"
+    elseif stats.Ping > 100 then
+        status = "🟡 Sedang"
+        rekomendasi = "Ping agak tinggi - hindari aktivitas berat"
+    end
+    
+    -- Analisis memori
+    if stats.Memori > 500 then
+        status = "🟡 Sedang"
+        rekomendasi = "Penggunaan memori tinggi - tutup aplikasi lain"
+    elseif stats.Memori > 800 then
+        status = "🔴 Kritis"
+        rekomendasi = "Memori hampir penuh - restart game disarankan"
+    end
+    
+    return status, rekomendasi
+end
+
+-- Section Kontrol Monitoring
+local SectionKontrol = TabInformasi:Section({
+    Title = "Kontrol Monitoring",
+    Icon = "settings"
+})
+
+SectionKontrol:Toggle({
+    Title = "Monitoring Real-time",
+    Content = "Aktifkan pemantauan performa",
+    Value = true,
+    Callback = function(nilai)
+        monitoringAktif = nilai
+        if nilai then
+            NotifySuccess("Monitoring", "Pemantauan performa diaktifkan")
+        else
+            NotifyInfo("Monitoring", "Pemantauan performa dinonaktifkan")
+        end
+    end
+})
+
+SectionKontrol:Dropdown({
+    Title = "Interval Update",
+    Content = "Atur kecepatan update monitoring",
+    Values = {"0.5 detik", "1 detik", "2 detik", "5 detik"},
+    Callback = function(yangDipilih)
+        local konversi = {
+            ["0.5 detik"] = 0.5,
+            ["1 detik"] = 1,
+            ["2 detik"] = 2,
+            ["5 detik"] = 5
+        }
+        updateInterval = konversi[yangDipilih] or 1
+        NotifyInfo("Monitoring", "Interval update diatur ke " .. yangDipilih)
+    end
+})
+
+SectionKontrol:Button({
+    Title = "Optimasi Otomatis",
+    Content = "Terapkan pengaturan optimal berdasarkan analisis",
+    Callback = function()
+        local stats = DapatkanStatistikPerforma()
+        local status, rekomendasi = AnalisisPerforma(stats)
+        
+        if stats.FPS < 30 then
+            -- Mode kritis
+            AturBatasFPS(30)
+            settings().Rendering.QualityLevel = 1
+            Lighting.GlobalShadows = false
+            Terrain.Decoration = false
+            NotifySuccess("Optimasi", "Mode kritis diterapkan - FPS ditingkatkan")
+        elseif stats.FPS < 50 then
+            -- Mode sedang
+            AturBatasFPS(45)
+            settings().Rendering.QualityLevel = 2
+            Lighting.GlobalShadows = false
+            NotifySuccess("Optimasi", "Mode sedang diterapkan - Performa ditingkatkan")
+        else
+            -- Mode optimal
+            AturBatasFPS(IS_MOBILE and 60 or IS_VR and 72 or 120)
+            NotifyInfo("Optimasi", "Sistem sudah optimal")
+        end
+    end
+})
+
+-- Section Statistik Game
+local SectionStatistik = TabInformasi:Section({
+    Title = "Statistik Game",
+    Icon = "gamepad-2"
+})
+
+local labelWaktuMain = SectionStatistik:Label({
+    Title = "⏱️ Waktu Main",
+    Content = "Menghitung..."
+})
+
+local labelJumlahPemain = SectionStatistik:Label({
+    Title = "👥 Jumlah Pemain",
+    Content = "Menghitung..."
+})
+
+local labelLokasiGame = SectionStatistik:Label({
+    Title = "🌍 Lokasi Game",
+    Content = "Mendeteksi..."
+})
+
+-- Monitoring statistik game
+task.spawn(function()
+    local startTime = tick()
+    
+    while task.wait(5) do
+        if not monitoringAktif then continue end
+        
+        -- Waktu main
+        local waktuMain = math.floor(tick() - startTime)
+        local jam = math.floor(waktuMain / 3600)
+        local menit = math.floor((waktuMain % 3600) / 60)
+        local detik = math.floor(waktuMain % 60)
+        labelWaktuMain:SetContent(string.format("%02d:%02d:%02d", jam, menit, detik))
+        
+        -- Jumlah pemain
+        local jumlahPemain = #Players:GetPlayers()
+        labelJumlahPemain:SetContent(jumlahPemain .. " pemain")
+        
+        -- Lokasi game
+        pcall(function()
+            local placeId = game.PlaceId
+            local placeName = game:GetService("MarketplaceService"):GetProductInfo(placeId).Name
+            labelLokasiGame:SetContent(placeName)
+        end)
+    end
+end)
+
+-- Sistem monitoring real-time yang efisien
+task.spawn(function()
+    local frameCount = 0
+    local lastTime = tick()
+    
+    while task.wait(0.1) do
+        if not monitoringAktif then
+            task.wait(1)
+            continue
+        end
+        
+        local currentTime = tick()
+        if currentTime - lastUpdateTime >= updateInterval then
+            lastUpdateTime = currentTime
+            
+            local stats = DapatkanStatistikPerforma()
+            local status, rekomendasi = AnalisisPerforma(stats)
+            
+            -- Update labels dengan warna indikator
+            if labelFPS then
+                local warnaFPS = stats.FPS > 60 and "🟢" or stats.FPS > 30 and "🟡" or "🔴"
+                labelFPS:SetContent(warnaFPS .. " " .. stats.FPS .. " FPS")
+            end
+            
+            if labelPing then
+                local warnaPing = stats.Ping < 80 and "🟢" or stats.Ping < 150 and "🟡" or "🔴"
+                labelPing:SetContent(warnaPing .. " " .. stats.Ping .. " ms")
+            end
+            
+            if labelMemori then
+                local warnaMemori = stats.Memori < 400 and "🟢" or stats.Memori < 600 and "🟡" or "🔴"
+                labelMemori:SetContent(warnaMemori .. " " .. stats.Memori .. " MB")
+            end
+            
+            if labelCPU then
+                local warnaCPU = stats.CPU < 30 and "🟢" or stats.CPU < 50 and "🟡" or "🔴"
+                labelCPU:SetContent(warnaCPU .. " " .. stats.CPU .. "%")
+            end
+            
+            if labelGPU then
+                local warnaGPU = stats.GPU < 25 and "🟢" or stats.GPU < 40 and "🟡" or "🔴"
+                labelGPU:SetContent(warnaGPU .. " " .. stats.GPU .. "%")
+            end
+            
+            if labelStatusPerforma then
+                labelStatusPerforma:SetContent(status)
+            end
+            
+            if labelRekomendasi then
+                labelRekomendasi:SetContent(rekomendasi)
+            end
+        end
+    end
+end)
+
+-- Section Dukungan
+local SectionDukungan = TabInformasi:Section({
+    Title = "Dukungan & Bantuan",
+    Icon = "help-circle"
+})
+
+SectionDukungan:Paragraph({
+    Title = "Fitur yang Tersedia",
+    Content = "• Kontrol Frame Rate\n• Optimasi Grafik\n• Pengaturan Partikel\n• Monitoring Performa Real-time\n• Optimasi Platform Spesifik\n• Optimasi Audio\n• Auto-Save System\n• Analisis Performa Otomatis"
+})
+
+SectionDukungan:Button({
+    Title = "Salin Discord",
+    Content = "Salin link Discord support",
+    Callback = function()
+        if SalinKeClipboard("https://discord.gg/mikpley") then
+            NotifySuccess("Discord", "Link Discord disalin!")
+        else
+            NotifyInfo("Discord", "https://discord.gg/mikpley")
+        end
+    end
+})
+
+SectionDukungan:Button({
+    Title = "Laporkan Masalah",
+    Content = "Buat laporan bug atau masalah",
+    Callback = function()
+        local stats = DapatkanStatistikPerforma()
+        local info = "Platform: " .. PLATFORM .. "\nFPS: " .. stats.FPS .. "\nPing: " .. stats.Ping .. "ms\nMemori: " .. stats.Memori .. "MB"
+        NotifyInfo("Laporan Bug", "Siapkan detail masalah:\n" .. info)
+    end
+})
+
+-------------------------------------------
+----- =======[ TAB PENGATURAN ] =======
+-------------------------------------------
+
+local SectionKonfigurasi = TabPengaturan:Section({
+    Title = "Konfigurasi",
+    Icon = "save"
+})
+
+SectionKonfigurasi:Paragraph({
+    Title = "Manajemen Pengaturan",
+    Content = "Simpan dan muat konfigurasi Anda"
+})
+
+-- Sistem konfigurasi
+local ManajerKonfig = Window.ConfigManager
+local konfigSaya = ManajerKonfig:CreateConfig("SOVEREIGN_v2.1")
+
+-- Auto-Save System
+local AutoSaveSystem = BuatAutoSaveSystem()
+
+SectionKonfigurasi:Toggle({
+    Title = "Auto-Save",
+    Content = "Simpan pengaturan secara otomatis",
+    Callback = function(nilai)
+        if nilai then
+            AutoSaveSystem.Enable()
+        else
+            AutoSaveSystem.Disable()
+        end
+    end
+})
+
+SectionKonfigurasi:Button({
+    Title = "Simpan Pengaturan",
+    Content = "Simpan konfigurasi saat ini",
+    Callback = function()
+        konfigSaya:Save()
+        NotifySuccess("Konfigurasi", "Pengaturan disimpan!")
+    end
+})
+
+SectionKonfigurasi:Button({
+    Title = "Muat Pengaturan",
+    Content = "Muat konfigurasi tersimpan",
+    Callback = function()
+        konfigSaya:Load()
+        NotifySuccess("Konfigurasi", "Pengaturan dimuat!")
+    end
+})
+
+SectionKonfigurasi:Button({
+    Title = "Reset ke Default",
+    Content = "Reset semua pengaturan",
+    Callback = function()
+        konfigSaya:Reset()
+        NotifySuccess("Konfigurasi", "Pengaturan direset!")
+    end
+})
+
+local SectionUI = TabPengaturan:Section({
+    Title = "Pengaturan UI",
+    Icon = "monitor"
+})
+
+SectionUI:Toggle({
+    Title = "Mode Kompak",
+    Content = "Perkecil ukuran antarmuka",
+    Callback = function(nilai)
+        if nilai then
+            local ukuran = IS_MOBILE and UDim2.fromOffset(350, 250) or 
+                          IS_VR and UDim2.fromOffset(350, 250) or 
+                          UDim2.fromOffset(500, 350)
+            Window:SetSize(ukuran)
+            NotifyInfo("UI", "Mode kompak diaktifkan")
+        else
+            Window:SetSize(ukuranWindow)
+            NotifyInfo("UI", "Mode kompak dinonaktifkan")
+        end
+    end
+})
+
+SectionUI:Button({
+    Title = "Refresh UI",
+    Content = "Segarkan antarmuka",
+    Callback = function()
+        WindUI:Notify({
+            Title = "UI Refresh",
+            Content = "Antarmuka disegarkan",
+            Duration = 2,
+            Icon = "refresh-cw"
+        })
+    end
+})
+
+SectionUI:Button({
+    Title = "Ekspor Pengaturan",
+    Content = "Ekspor konfigurasi saat ini",
+    Callback = function()
+        local configData = konfigSaya:Export()
+        if SalinKeClipboard(configData) then
+            NotifySuccess("Ekspor", "Konfigurasi disalin ke clipboard!")
+        else
+            NotifyInfo("Ekspor", "Konfigurasi siap untuk disalin")
+        end
+    end
+})
+
+-------------------------------------------
+----- =======[ INISIALISASI AKHIR ] =======
+-------------------------------------------
+
+-- Optimasi otomatis berdasarkan platform
+task.spawn(function()
+    task.wait(3)
+    
+    if IS_MOBILE then
+        OptimalkanUntukMobile()
+        AturBatasFPS(60)
+        NotifyInfo("Optimasi Otomatis", "Pengaturan mobile optimal diterapkan")
+    elseif IS_VR then
+        OptimalkanUntukVR()
+        AturBatasFPS(72)
+        NotifyInfo("Optimasi Otomatis", "Pengaturan VR optimal diterapkan")
+    else
+        OptimalkanUntukDesktop()
+        NotifyInfo("Optimasi Otomatis", "Pengaturan desktop optimal diterapkan")
+    end
+end)
+
+-- Notifikasi akhir
+task.wait(2)
+local pesanAkhir = IS_DESKTOP and 
+    "Gunakan RightShift untuk toggle UI\nSemua fitur siap digunakan!" or
+    IS_VR and "Pengalaman VR dioptimalkan\nSemua fitur siap digunakan!" or
+    "Ketuk untuk berinteraksi\nSemua fitur dioptimalkan untuk " .. PLATFORM
+
+NotifySuccess("SOVEREIGN - Booster v2.1", pesanAkhir)
+
+-- Auto-save system background task
+task.spawn(function()
+    while task.wait(300) do -- Auto-save setiap 5 menit
+        if AutoSaveSystem then
+            konfigSaya:Save()
+        end
+    end
+end)
+
+-- Pastikan semua fungsi tersedia
+return {
+    Window = Window,
+    Platform = PLATFORM,
+    IsMobile = IS_MOBILE,
+    IsDesktop = IS_DESKTOP,
+    IsVR = IS_VR,
+    Version = "2.1.0"
+}

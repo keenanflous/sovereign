@@ -87,7 +87,7 @@ end)
 
 local WindUI
 local function LoadWindUI()
-    local urls = "local WindUI = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+    local urls = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
     
     for i, url in ipairs(urls) do
         local success, result = pcall(function()
